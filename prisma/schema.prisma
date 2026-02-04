@@ -1,0 +1,92 @@
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// 1. Session Model (Shopify Standard)
+model Session {
+  id            String    @id
+  shop          String
+  state         String
+  isOnline      Boolean   @default(false)
+  scope         String?
+  expires       DateTime?
+  accessToken   String
+  userId        BigInt?
+  firstName     String?
+  lastName      String?
+  email         String?
+  accountOwner  Boolean   @default(false)
+  locale        String?
+  collaborator  Boolean?  @default(false)
+  emailVerified Boolean?  @default(false)
+}
+
+// 2. Purchase Order Model
+model PurchaseOrder {
+  id               String              @id @default(cuid())
+  poNumber         String              @unique
+  vendor           String
+  orderDate        DateTime            @default(now())
+  readyDate        DateTime
+  dueDate          DateTime?
+  note             String?             @db.Text
+  attachment       String?
+  
+  // Quantity Fields (Now Stored in DB)
+  totalQuantity    Int                 @default(0) 
+  receivedQuantity Int                 @default(0) 
+  
+  // Amount Fields
+  totalAmount      Float
+  shipping         Float               @default(0)
+  balance          Float               @default(0)
+  
+  status           POStatus            @default(PENDING)
+  
+  // Relations
+  items            PurchaseOrderItem[]
+  payments         Payment[]
+  
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+}
+
+// 3. Purchase Order Items
+model PurchaseOrderItem {
+  id               String        @id @default(cuid())
+  purchaseOrderId  String
+  variantId        String
+  title            String
+  sku              String?
+  quantity         Int           @default(0)
+  receivedQty      Int           @default(0)
+  cost             Float         @default(0)
+  subtotal         Float         @default(0)
+  readyDate        DateTime?
+  
+  // Relation to Parent
+  purchaseOrder    PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+}
+
+// 4. Payments
+model Payment {
+  id               String        @id @default(cuid())
+  purchaseOrderId  String
+  amount           Float
+  paidAt           DateTime      @default(now())
+  
+  // Relation to Parent
+  purchaseOrder    PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+}
+
+// 5. Enums
+enum POStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
